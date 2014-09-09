@@ -6,25 +6,12 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strings"
 
 	"github.com/mitchellh/colorstring"
 )
 
-var (
-	pattern = ""
-	color   = "red"
-)
-
 func main() {
-	for i, v := range os.Args {
-		switch i {
-		case 1:
-			pattern = v
-		case 2:
-			color = v
-		}
-	}
+	pattern, color := parseArgs(os.Args)
 
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -34,15 +21,27 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		s := scanner.Text()
-		var response, oldString, newString string
-		if re.MatchString(s) {
-			oldString = re.FindString(s)
-			newString = colorstring.Color(fmt.Sprintf("[%s]%s", color, oldString))
-			response = strings.Replace(s, oldString, newString, -1)
-		}
-		fmt.Print(response)
+		fmt.Print(re.ReplaceAllStringFunc(s, func(matched string) string {
+			colored := colorstring.Color(fmt.Sprintf("[%s]%s", color, matched))
+			return colored
+		}))
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
+}
+
+func parseArgs(osArgs []string) (string, string) {
+	args := make([]string, 3)
+	copy(args, os.Args)
+
+	pattern := args[1]
+	if pattern == "" {
+		pattern = ""
+	}
+	color := args[2]
+	if color == "" {
+		color = "red"
+	}
+	return pattern, color
 }
